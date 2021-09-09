@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+#     Program to rename pdf to Author(optional)_Title_YYYYMMDD.pdf
+#
+# 20210907 - Duplicate file names
+# 20210906 - Initial version
+List=`ls *pdf`   ; # List of files to convert
+od="./PDF"       ; # Output dirctory
+bd="./.BACKUP"   ; # Input  Backup and work dirrectory
+cnt=0            ; # number of input files
+er=0             ; # number of duplicate names
+# testing: List="3b79ee_f80a886172bd46ada5db4c977495f196.pdf 3b79ee_fd5b8c9d1bd3408dbb327531db38ff8c.pdf 3b79ee_416bbb03511c41028ff5cc008d0ad94e.pdf"
+if [ "no" = "$1" ]; then 
+   one="NO"
+else
+   one="YES"
+fi
+mkdir -p $od $bd
+for f in $List
+do
+   cnt=`expr $cnt + 1`
+   ff=`basename $f .pdf`
+   # echo "$cnt $ff $f"
+   pdfinfo $f > $bd/$ff.info
+   awk '
+BEGIN{
+   months_list="Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
+   z=split(months_list,months_param,",")
+   for (i=1; i <= z; ++i){
+      months[months_param[i]] = i
+      if (i<10) { months[months_param[i]] = "0" i }
+      } ;# end for
+   }
+#Author:         Nadezhda Sarankhova
+/^Author:/ {
+   a=$0
+   sub("Author:         ","",a)
+   gsub(" ","",a)
+   }
+#Title:          His Mommys New Life: His Slut
+/^Title:/ {
+   t=$0
+   sub("Title:          ","",t)
+   gsub(Q,"",t)
+   gsub(":","_",t)
+   gsub("&","And",t)
+   gsub("/","_",t)
+   gsub(",","",t)
+   gsub("!","",t)
+   gsub(" ","",t)
+   }
+#CreationDate:   Thu Aug 26 18:32:26 2021 MST
+/^CreationDate:/ {
+   #print $0
+   #d=$0
+   #sub("CreationDate:   ","",d)
+   Y=$(NF-1)
+   m=$3
+   M=months[m]
+   D=$4
+   d=Y M D
+   }
+END {
+   #print a
+   #print t
+   #print d
+   print "NA=\"" a "-" t "-" d ".pdf\""
+   print "N=\""  t "-" d ".pdf\""
+   }' Q="'"  $bd/$ff.info > $bd/$cnt.sh
+   . $bd/$cnt.sh
+   if [ "$one" = "NO" ]; then
+      of="$od/$N"
+   else
+      of="$od/$NA"
+   fi
+   echo "$cnt: Changing $f to $of ..."
+   cp -p $f $bd/
+   while [ -f "$of" ]; 
+   do
+      er=`expr $er + 1`
+      OF=$of
+      of="$of.PDF"
+      cat <<EOF
+
+Error #$er Found file '$OF' using '$of'
+`ls -l $OF`
+
+EOF
+   done
+   mv $f $of
+   err="$?"
+   if [ 0 < $err ]; then
+      cat <<EOF
+
+File: $f NewFile: $of Error: $err
+
+EOF
+   fi
+done
+
+echo "Attempted to change $cnt pdf files. Original in .BACKUP new names in PDF"
+if [ "$er" > 0 ]; then
+   echo "               Found at most $er duplicate file names. Look for files ending in PDF."
+fi
